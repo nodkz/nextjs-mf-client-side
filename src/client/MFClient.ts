@@ -50,6 +50,22 @@ export class MFClient {
     // @ts-expect-error this method will be defined by webpack
     __webpack_init_sharing__('default');
 
+    // @ts-expect-error
+    // mark all shared modules from NextJS as loaded
+    Object.values(__webpack_share_scopes__?.default || {}).forEach(function (
+      moduleVersions: any
+    ) {
+      if (typeof moduleVersions === 'object') {
+        Object.values(moduleVersions).forEach(function (versionData: any) {
+          if (typeof versionData === 'object') {
+            if (versionData?.from === '_N_E') {
+              versionData.loaded = 1;
+            }
+          }
+        });
+      }
+    });
+
     this._nextPageLoader = nextPageLoader;
     this.events = new EventEmitter<EventTypes>();
 
