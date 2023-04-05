@@ -60,6 +60,7 @@ export class MFClient {
     )._getPageListOriginal.bind(this._nextPageLoader);
     this.combinedPages = new CombinedPages(localPagesGetter, this.remotePages);
     // pre-cache new page list (it helps to fix falsy calls of useMFClient({ onRemoteChange }) callback)
+    // also it helps to safely use isLocalPathnameSync method
     this.combinedPages.getPageList().catch(() => {});
 
     this._wrapLoadRoute(nextPageLoader);
@@ -67,7 +68,7 @@ export class MFClient {
 
     this.initialNextConfig = getConfig();
     singletonRouter.events.on('routeChangeStart', (pathname) =>
-      this.reinitNextAppConfig(pathname).catch(() => {})
+      this.reinitNextAppConfig(pathname)
     );
   }
 
@@ -256,7 +257,7 @@ export class MFClient {
             route = await this.pathnameToRoute(window.location.pathname);
           }
           if (route) {
-            await this.reinitNextAppConfig(window.location.pathname);
+            this.reinitNextAppConfig(window.location.pathname);
 
             // TODO: fix router properties for the first page load of federated page http://localhost:3000/shop/products/B
             console.warn('replace entrypoint /_error by', route);
@@ -282,19 +283,18 @@ export class MFClient {
    * This method set public NextJS config (publicRuntimeConfig) for any remote or host application.
    * This config is global for browser and currently opened pages may use it.
    *
-   * For example if we open `storage` service as hos app and then switch to `tickets` service
+   * For example if we open `storage` service as host app and then switch to `tickets` service
    * then we have to reinit this config with tickets' publicRuntimeConfig variables. Otherwise tickets pages
    * will connect to storage's GraphQL server.
    */
-  async reinitNextAppConfig(dirtyPathname: string) {
+  reinitNextAppConfig(dirtyPathname: string) {
     const pathname = dirtyPathname?.split('?')[0];
-    if (await this.combinedPages.isLocalPathname(pathname)) {
+    if (this.combinedPages.isLocalPathnameSync(pathname)) {
       // set config from local nextjs app
       setConfig(this.initialNextConfig);
     } else {
       const remote = this.remotePages.routeToRemote(pathname);
       if (remote) {
-        await remote.getContainer();
         // set config for remote nextjs app
         const remoteAppConfig = remote?.appConfig?.runtimeConfig;
         if (remoteAppConfig) {
