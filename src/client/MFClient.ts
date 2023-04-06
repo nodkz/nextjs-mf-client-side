@@ -318,6 +318,16 @@ export class MFClient {
             serverRuntimeConfig: {},
             publicRuntimeConfig: remoteAppConfig,
           });
+        } else {
+          // try to change config asynchronously
+          remote.getAppConfig().then((appConfig) => {
+            if (appConfig) {
+              setConfig({
+                serverRuntimeConfig: {},
+                publicRuntimeConfig: appConfig.runtimeConfig,
+              });
+            }
+          });
         }
       }
     }
