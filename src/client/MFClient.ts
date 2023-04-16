@@ -83,9 +83,24 @@ export class MFClient {
     this._wrapWhenEntrypoint(nextPageLoader);
 
     this.initialNextConfig = getConfig();
-    singletonRouter.events.on('routeChangeStart', (pathname) =>
-      this.reinitNextAppConfig(pathname)
-    );
+
+    // change nextjs config before page rendering if needed
+    singletonRouter.ready(() => {
+      const router = singletonRouter.router;
+      if (router) {
+        const origSub = router.sub;
+        router.sub = async (data, App, resetScroll) => {
+          const pathname = data.resolvedAs;
+          if (pathname) {
+            await this.reinitNextAppConfig(pathname);
+          }
+          return origSub(data, App, resetScroll);
+        };
+      }
+    });
+    // singletonRouter.events.on('routeChangeStart', (pathname) =>
+    //   this.reinitNextAppConfig(pathname)
+    // );
   }
 
   /**
@@ -273,7 +288,7 @@ export class MFClient {
             route = await this.pathnameToRoute(window.location.pathname);
           }
           if (route) {
-            this.reinitNextAppConfig(window.location.pathname);
+            // this.reinitNextAppConfig(window.location.pathname);
 
             // TODO: fix router properties for the first page load of federated page http://localhost:3000/shop/products/B
             console.warn('replace entrypoint /_error by', route);
@@ -303,7 +318,7 @@ export class MFClient {
    * then we have to reinit this config with tickets' publicRuntimeConfig variables. Otherwise tickets pages
    * will connect to storage's GraphQL server.
    */
-  reinitNextAppConfig(dirtyPathname: string) {
+  async reinitNextAppConfig(dirtyPathname: string) {
     const pathname = dirtyPathname?.split('?')[0];
     if (this.combinedPages.isLocalPathnameSync(pathname)) {
       // set config from local nextjs app
@@ -311,22 +326,13 @@ export class MFClient {
     } else {
       const remote = this.remotePages.routeToRemote(pathname);
       if (remote) {
+        await remote.getContainer();
         // set config for remote nextjs app
         const remoteAppConfig = remote?.appConfig?.runtimeConfig;
         if (remoteAppConfig) {
           setConfig({
             serverRuntimeConfig: {},
             publicRuntimeConfig: remoteAppConfig,
-          });
-        } else {
-          // try to change config asynchronously
-          remote.getAppConfig().then((appConfig) => {
-            if (appConfig) {
-              setConfig({
-                serverRuntimeConfig: {},
-                publicRuntimeConfig: appConfig.runtimeConfig,
-              });
-            }
           });
         }
       }
