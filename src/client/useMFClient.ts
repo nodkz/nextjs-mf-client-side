@@ -57,7 +57,11 @@ export function useMFClient(opts: MFClientHookOptions): MFClient {
     const handleRouterChange = (pathname: string) => {
       if (MFClient.isFederatedPathname(pathname)) {
         const remote = MFClient.remotePages.routeToRemote(pathname);
-        processRemoteChange(remote);
+        MFClient.reinitNextAppConfig(pathname)
+          .then(() => {
+            processRemoteChange(remote);
+          })
+          .catch(() => {});
       } else {
         processRemoteChange(undefined);
       }
